@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Prisma3D Comunidad - Galería Pública</title>
+    <script src="https://jsdelivr.net"></script>
+    <script type="module" src="https://googleapis.com"></script>
+    <script src="config.js"></script>
+    <style>
+        .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 20px; }
+        .tarjeta { border: 1px solid #ccc; padding: 10px; border-radius: 8px; text-align: center; }
+        model-viewer { width: 100%; height: 180px; }
+        .filtros button { margin-right: 5px; padding: 8px 12px; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <h1>Galería de Modelos Prisma3D</h1>
+    
+    <!-- Filtros de categoría exactos que pediste -->
+    <div class="filtros">
+        <button onclick="cargarModelosPublicos('todos')">Todos</button>
+        <button onclick="cargarModelosPublicos('funny')">Funny</button>
+        <button onclick="cargarModelosPublicos('human')">Human</button>
+        <button onclick="cargarModelosPublicos('base')">Base</button>
+        <button onclick="cargarModelosPublicos('free')">Free</button>
+        <button onclick="cargarModelosPublicos('random')">Random</button>
+    </div>
+    <br>
+
+    <div class="grid" id="galeria">
+        <!-- Aquí se construyen los visores públicos de los usuarios automáticamente -->
+    </div>
+
+    <script>
+        async function cargarModelosPublicos(categoriaFiltro) {
+            const galeria = document.getElementById('galeria');
+            galeria.innerHTML = "Cargando galería...";
+
+            let consulta = supabase.from('Modelos').select('*');
+            
+            // Si eligen una categoría, filtramos la base de datos
+            if (categoriaFiltro !== 'todos') {
+                consulta = consulta.eq('categoria', categoriaFiltro);
+            }
+
+            const { data, error } = await consulta.order('M_ID', { ascending: false });
+
+            galeria.innerHTML = ""; // Limpiar mensaje de carga
+
+            if (data) {
+                data.forEach(modelo => {
+                    // Genera una tarjeta con visor público independiente para cada MID
+                    galeria.innerHTML += `
+                        <div class="tarjeta">
+                            <h4>${modelo.titulo}</h4>
+                            <p><small>MID: ${modelo.M_ID} | Creador: C-${modelo.creador_id}</small></p>
+                            <model-viewer src="${modelo.ruta_web}" camera-controls></model-viewer>
+                            <br>
+                            <a href="${modelo.ruta_prisma}" download>
+                                <button style="background: green; color: white;">Descargar .PRISMA</button>
+                            </a>
+                        </div>
+                    `;
+                });
+            }
+        }
+
+        // Carga inicial
+        cargarModelosPublicos('todos');
+    </script>
+</body>
+</html>
+
