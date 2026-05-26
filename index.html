@@ -2,71 +2,95 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>Prisma3D Comunidad - Galería Pública</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Prisma3D Hub - Inicio</title>
+    <!-- Librerías de Supabase y Model Viewer para 3D -->
     <script src="https://jsdelivr.net"></script>
     <script type="module" src="https://googleapis.com"></script>
-    <script src="config.js"></script>
     <style>
+        body { font-family: sans-serif; background: #121212; color: white; margin: 20px; }
+        nav { display: flex; justify-content: space-between; margin-bottom: 30px; }
+        .tags { margin-bottom: 20px; display: flex; gap: 10px; }
+        .tag-btn { background: #333; color: white; border: none; padding: 8px 15px; cursor: pointer; border-radius: 5px; }
+        .tag-btn:hover { background: #555; }
         .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 20px; }
-        .tarjeta { border: 1px solid #ccc; padding: 10px; border-radius: 8px; text-align: center; }
-        model-viewer { width: 100%; height: 180px; }
-        .filtros button { margin-right: 5px; padding: 8px 12px; cursor: pointer; }
+        .card { background: #1e1e1e; padding: 15px; border-radius: 8px; border: 1px solid #333; text-align: center; }
+        model-viewer { width: 100%; height: 200px; background: #000; border-radius: 5px; }
+        a { color: #00ffff; text-decoration: none; }
     </style>
 </head>
 <body>
-    <h1>Galería de Modelos Prisma3D</h1>
-    
-    <!-- Filtros de categoría exactos que pediste -->
-    <div class="filtros">
-        <button onclick="cargarModelosPublicos('todos')">Todos</button>
-        <button onclick="cargarModelosPublicos('funny')">Funny</button>
-        <button onclick="cargarModelosPublicos('human')">Human</button>
-        <button onclick="cargarModelosPublicos('base')">Base</button>
-        <button onclick="cargarModelosPublicos('free')">Free</button>
-        <button onclick="cargarModelosPublicos('random')">Random</button>
-    </div>
-    <br>
 
-    <div class="grid" id="galeria">
-        <!-- Aquí se construyen los visores públicos de los usuarios automáticamente -->
+    <nav>
+        <h1>Prisma3D Hub</h1>
+        <div id="nav-auth">
+            <!-- Cambia dinámicamente con JS si estás logueado -->
+            <a href="registro.html">Iniciar Sesión / Registro</a>
+        </div>
+    </nav>
+
+    <h3>¿Qué te gusta hoy?</h3>
+    <div class="tags">
+        <button class="tag-btn" onclick="cargarModelos('')">Todos</button>
+        <button class="tag-btn" onclick="cargarModelos('funny')">funny</button>
+        <button class="tag-btn" onclick="cargarModelos('human')">human</button>
+        <button class="tag-btn" onclick="cargarModelos('base')">base</button>
+        <button class="tag-btn" onclick="cargarModelos('free')">free</button>
+        <button class="tag-btn" onclick="cargarModelos('Random')">Random</button>
     </div>
 
+    <h2>Modelos Recientes</h2>
+    <div class="grid" id="modelos-container">
+        <!-- Los modelos de Supabase se cargarán aquí -->
+    </div>
+
+    <script src="app.js"></script>
     <script>
-        async function cargarModelosPublicos(categoriaFiltro) {
-            const galeria = document.getElementById('galeria');
-            galeria.innerHTML = "Cargando galería...";
+        // Inicializar Supabase (Reemplaza con tus datos)
+        const supabase = supabase.createClient('TU_SUPABASE_URL', 'TU_SUPABASE_ANON_KEY');
 
-            let consulta = supabase.from('Modelos').select('*');
+        // Verificar si el usuario está logueado para cambiar la barra de navegación
+        async function verificarNav() {
+            const { data: { user } } = await supabase.auth.getUser();
+            if (user) {
+                // Obtener su ID personalizado (C-1900...)
+                const { data } = await supabase.from('profiles').select('custom_id').eq('id', user.id).single();
+                document.getElementById('nav-auth').innerHTML = `
+                    <a href="mi-cuenta.html" style="margin-right:15px;">Mi Cuenta (C-${data.custom_id})</a>
+                    <button onclick="supabase.auth.signOut().then(()=>location.reload())">Salir</button>
+                `;
+            }
+        }
+
+        // Cargar modelos filtrados por categoría
+        async function cargarModelos(categoria = '') {
+            let query = supabase.from('models').select('*, profiles(custom_id)').eq('is_private', false);
             
-            // Si eligen una categoría, filtramos la base de datos
-            if (categoriaFiltro !== 'todos') {
-                consulta = consulta.eq('categoria', categoriaFiltro);
+            if (categoria !== '') {
+                query = query.eq('category', categoria);
             }
 
-            const { data, error } = await consulta.order('M_ID', { ascending: false });
-
-            galeria.innerHTML = ""; // Limpiar mensaje de carga
+            const { data, error } = await query;
+            const container = document.getElementById('modelos-container');
+            container.innerHTML = '';
 
             if (data) {
                 data.forEach(modelo => {
-                    // Genera una tarjeta con visor público independiente para cada MID
-                    galeria.innerHTML += `
-                        <div class="tarjeta">
-                            <h4>${modelo.titulo}</h4>
-                            <p><small>MID: ${modelo.M_ID} | Creador: C-${modelo.creador_id}</small></p>
-                            <model-viewer src="${modelo.ruta_web}" camera-controls></model-viewer>
-                            <br>
-                            <a href="${modelo.ruta_prisma}" download>
-                                <button style="background: green; color: white;">Descargar .PRISMA</button>
-                            </a>
+                    container.innerHTML += `
+                        <div class="card">
+                            <model-viewer src="${modelo.file_url}" auto-rotate camera-controls></model-viewer>
+                            <h4>${modelo.title}</h4>
+                            <p>Categoría: <b>${modelo.category}</b></p>
+                            <p>Creador: <a href="perfil.html?id=${modelo.profiles.custom_id}">C-${modelo.profiles.custom_id}</a></p>
+                            <small>MID: ${modelo.id}</small>
                         </div>
                     `;
                 });
             }
         }
 
-        // Carga inicial
-        cargarModelosPublicos('todos');
+        verificarNav();
+        cargarModelos();
     </script>
 </body>
 </html>
